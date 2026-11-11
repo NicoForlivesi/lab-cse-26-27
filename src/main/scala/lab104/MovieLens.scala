@@ -125,6 +125,21 @@ object MovieLens {
         toDF().write.format("csv").mode(SaveMode.Overwrite).
         save(Commons.getDatasetPath(writeMode,path_output_avgRatPerGenre))
     }
+    else if (job=="6"){
+        rddRatingsKV = rddRatings.
+            map(x => (x._1, x._2))
+
+        rddTags.
+            map(x => (x._1, x._2)).
+            join(rddRatingsKV).
+            map(x => (x._1._0, (x._1._1, 1))).
+            reduceByKey(x, y => (x._0 + y._0, x._1 + y._1)).
+            map(x => (x._0, x._1._0 / x._1._1)).
+            map(lambda x: (x[0], "Positive" if x[1] >= 4 else ("Negative" if x[1] <= 2 else "Neutral"))).
+            coalesce(1).
+            toDF().write.format("csv").mode(SaveMode.Overwrite).
+            save(Commons.getDatasetPath(writeMode,path_output_avgRatPerGenre))
+    }
     else {
       println("Wrong job number")
     }
