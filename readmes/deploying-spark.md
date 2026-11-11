@@ -268,13 +268,12 @@ Create a cluster with the following command.
 ```
 aws emr create-cluster \
     --name "Big Data Cluster" \
-    --log-uri "s3://<your_s3_log_directory>" \
-    --release-label "emr-8.1.0" \
+    --log-uri "s3://unibo-bd2627-nforlivesi/log \
+    --release-label "emr-spark-8.1.0" \
     --log-uri "s3://aws-logs/elasticmapreduce" \
-    --applications Name=Hadoop Name=Spark \
     --instance-groups InstanceGroupType=MASTER,InstanceCount=1,InstanceType=m4.large InstanceGroupType=CORE,InstanceCount=2,InstanceType=m4.large \
     --service-role EMR_DefaultRole \
-    --ec2-attributes InstanceProfile=EMR_EC2_DefaultRole,KeyName=<your_key_pair_name> \
+    --ec2-attributes InstanceProfile=EMR_EC2_DefaultRole,KeyName=nf_lab \
     --region "us-east-1"
 ```
 
