@@ -38,8 +38,8 @@ object Streaming {
    * @param sc
    */
   def exercise1(sc: SparkContext, host: String, port: Int): Unit = {
-    val ssc = new StreamingContext(sc, Seconds(3))
-    val lines = ssc.socketTextStream(host,port,StorageLevel.MEMORY_AND_DISK_SER)
+    val ssc = new StreamingContext(sc, Seconds(3)) // Finestra di osservazione di 3 secondi
+    val lines = ssc.socketTextStream(host,port,StorageLevel.MEMORY_AND_DISK_SER) // Crea il DStream
     val words = lines.flatMap(_.split(" "))
     val count = words.count()
     count.print()
@@ -80,7 +80,8 @@ object Streaming {
       newSsc
     }
 
-    val ssc = StreamingContext.getOrCreate(path, functionToCreateContext _)
+    val ssc = StreamingContext.getOrCreate(path, functionToCreateContext _) // If path is empty the function is 
+    // executed (this happens the first time, then it go on with "path")
     ssc.start()
     ssc.awaitTermination()
   }
@@ -135,19 +136,45 @@ object Streaming {
    * @param sc
    */
   def exercise6(sc: SparkContext, host: String, port: Int): Unit = {
+    val ssc = new StreamingContext(sc, Seconds(5))
+    val lines = ssc.socketTextStream(host,port,StorageLevel.MEMORY_AND_DISK_SER).window(Seconds(60), Seconds(5))
+    val tags = lines.map(_.split("\\|")(2))
+    val words = tags.flatMap(_.split(", "))
+    val wordCounts = words.map(x => (x, 1)).reduceByKey(_ + _)
+    wordCounts.map({case(k,v)=>(v,k)}).transform({ rdd => rdd.sortByKey(false) }).print()
+
+    ssc.start()
+    ssc.awaitTermination()
   }
 
   /**
    * This is a stateful job to incrementally count the number of tweets by city.
-   * Remember to either create a new directory on S3 or to empty the previous one.
+   * Remember to either create a new directory locally or to empty the previous one.
    * @param sc
    */
   def exercise7(sc: SparkContext, host: String, port: Int, path: String): Unit = {
+    def updateFunction( newValues: Seq[Int], oldValue: Option[Int] ): Option[Int] = {
+      Some(oldValue.getOrElse(0) + newValues.sum)
+    }
+
+    def functionToCreateContext(): StreamingContext = {
+      val newSsc = new StreamingContext(sc, Seconds(3))
+      val lines = newSsc.socketTextStream(host,port,StorageLevel.MEMORY_AND_DISK_SER)
+      val cities = lines.map(_.split("\\|")(4)).filter(_.nonEmpty)
+      val cumulativeWordCounts = cities.map(x => (x, 1)).updateStateByKey(updateFunction)
+      cumulativeWordCounts.map({case(k,v)=>(v,k)}).transform({ rdd => rdd.sortByKey(false) }).print()
+      newSsc.checkpoint(path)
+      newSsc
+    }
+
+    val ssc = StreamingContext.getOrCreate(path, functionToCreateContext _)
+    ssc.start()
+    ssc.awaitTermination()
   }
 
   /**
    * This job extends the previous one by calculating also the average sentiment (per country instead of per city).
-   * Remember to either create a new directory on S3 or to empty the previous one.
+   * Remember to either create a new directory locally or to empty the previous one.
    * @param sc
    */
   def exercise8(sc: SparkContext, host: String, port: Int, path: String): Unit = {
